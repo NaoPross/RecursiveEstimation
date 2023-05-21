@@ -1,0 +1,403 @@
+% !TeX program = xelatex
+% !TeX encoding = utf8
+% !TeX root = RecursiveEstimation.tex
+% vim:set ts=2 sw=2 et spell tw=78:
+
+\documentclass[margin=small]{hsrzf}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Packages
+
+%% The OST Student's package
+\usepackage{oststud}
+
+% TODO: remove once oststud gets updated
+\makeatletter
+\let\ost@expectation\relax \let\ost@variance\relax
+\let\E\relax \let\Var\relax
+\DeclareMathOperator*{\ost@expectation}{E}
+\newcommand*{\E}[2][]{\ost@expectation_{#1}\left\{#2\right\}}
+\DeclareMathOperator*{\ost@variance}{Var}
+\newcommand*{\Var}[2][]{\ost@variance_{#1}\left\{#2\right\}}
+\makeatother
+
+%% Mathematics
+\usepackage{amsmath}
+\usepackage{amsthm}
+
+%% Language configuration
+\usepackage{polyglossia}
+\setdefaultlanguage{english}
+\setotherlanguage[variant=swiss]{german}
+
+%% License configuration
+\usepackage[
+  type={CC},
+  modifier={by-nc-sa},
+  version={4.0},
+]{doclicense}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Metadata
+
+\course{Electrical Engineering}
+\module{Recursive Estimation}
+\semester{Spring Semester 2023}
+
+\authoremail{npross@student.ethz.ch}
+\author{\textsl{Naoki Sean Pross} -- \texttt{\theauthoremail}}
+
+% did someone help you with this work?
+\contributors{
+  % I created this template, does that count?
+  Naoki Pross
+  % do not forget to add yourself!
+}
+
+\title{Notes of \themodule}
+\date{\thesemester}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Macros
+
+\theoremstyle{plain}
+\newtheorem{thm}{Theorem}[section]
+\newtheorem{prop}{Proposition}[section]
+
+\theoremstyle{definition}
+\newtheorem{defn}{Definition}[section]
+\newtheorem{alg}{Algorithm}[section]
+
+\theoremstyle{remark}
+\newtheorem{example}{Example}
+\newtheorem*{remark}{Remark}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Document
+
+\begin{document}
+
+% use roman numberals for introductiory pages
+\pagenumbering{roman}
+
+\maketitle
+
+% \begin{abstract}
+% \end{abstract}
+
+% show the names of the people who contributed to this document.
+% \section*{Contributors}
+% \thecontributors
+
+\section*{Lizenz}
+\doclicenseThis
+
+\tableofcontents
+
+% actual content
+\clearpage
+\setcounter{page}{1}
+\pagenumbering{arabic}
+
+\twocolumn
+
+\section{Probability Basics Review}
+
+Note that the following definitions will not be rigorous.
+
+\subsection{Random Variables}
+
+\begin{defn}[Random Variable]
+  We call $x \in \mathcal{X}$ a random variable (RV) from the set of possible
+  outcomes $\mathcal{X}$, with an associated probability density function
+  (PDF) $p_x : \mathcal{X} \to \mathbb{R}$ that satisfies
+  \begin{itemize}
+    \item $p_x(\bar{x}) \geq 0$ for all $\bar{x} \in \mathcal{X}$, and
+    \item if $\mathcal{X}$is countable (discrete random variable, DRV)
+      \[
+        \sum_{\bar{x} \in \mathcal{X}} p_x(\bar{x}) = 1
+        \quad\text{or}\quad
+        \int_\mathcal{X} p_x(\bar{x}) d\bar{x} =1,
+      \]
+      in the case of a continuous random variable (CRV) ($\mathcal{X}$ is an
+      interval).
+  \end{itemize}
+\end{defn}
+
+The PDF is then used to define the notion of probability, i.e. the probability
+that a discrete RV $x$ takes the value $\bar{x} \in \mathcal{X}$ is
+$p_x(\bar{x})$, and is written as $\Pr{x = \bar{x}}$.
+
+For a continuous RV $x$ the probability of any specific value is always 0,
+instead we can only can only refer to the RV being in some interval $[a,b]
+\subseteq \mathcal{X}$ and we write $\Pr{x \in [a,b]} = \int_a^b p_x(\bar{x})
+\,d\bar{x}$.
+
+\begin{defn}[Joint PDF]
+  Let $x \in \mathcal{X}$ and $y \in \mathcal{Y}$ be RVs. The joint PDF
+  satisfies
+  \begin{itemize}
+    \item $p_{xy}(\bar{x}, \bar{y}) \geq 0$ for all $x \in\mathcal{X}$ and $y
+      \in \mathcal{Y}$,
+    \item further
+      \[
+        \sum_{\bar{x}\in\mathcal{X}}\sum_{\bar{y}\in\mathcal{Y}}
+        p_{xy}(\bar{x}, \bar{y}) = 1
+        \text{ or }
+        \iint\limits_{\mathcal{X}\times\mathcal{Y}} p_{xy}(\bar{x}, \bar{y})
+        \,d\bar{x}d\bar{y} = 1
+      \]
+      for DRVs or CRVs, respectively.
+  \end{itemize}
+\end{defn}
+
+The interpretation of the joint PDF is that both $x$ equals $\bar{x}$ and $y$
+equals $\bar{y}$.
+
+\begin{defn}[Marginalization]
+  From a joint PDF of $x$ and $y$ we can redefine the PDF of either variable
+  by going through each case of the other:
+  \[
+    p_x(\bar{x}) = \sum_{\bar{y} \in \mathcal{Y}} p_{xy} (\bar{x}, \bar{y})
+    \text{~~or~~}
+    p_x(\bar{x}) = \int_\mathcal{Y} p_{xy} (\bar{x}, \bar{y}) \,
+    d\bar{y}
+  \]
+  and similar for $p_y(\bar{y})$.
+\end{defn}
+
+\begin{defn}[Conditioning]
+  Given the RVs $x$, $y$ and $p_{xy}(\bar{x}, \bar{y})$ define
+  \[
+    p_{x|y}(\bar{x} | \bar{y}) = \frac{p_{xy}(\bar{x}, \bar{y})}{p_y(\bar{y})}
+    \iff
+    p_{x|y}(\bar{x} | \bar{y}) p_y(\bar{y}) = p_{xy}(\bar{x}, \bar{y})
+  \]
+  when $p_y(\bar{y}) \neq 0$.
+\end{defn}
+
+The $p_{x|y}(\bar{x} | \bar{y})$ is reads $x$ given $y$ ans is to be
+understood the probability of $x$ while keeping $y$ fixed.
+
+The above can generalized for more variables by having a vector of RVs
+$(x_1,\ldots, x_N) \in \mathcal{X}^N$. In particular $p : \mathcal{X}^N \to
+\mathbb{R}$ is still a scalar. Marginalization still applies
+\[
+  p(x_1, x_3, \ldots, x_{N-1}) = \sum_{(x_{2}, x_{N}) \in \mathcal{X}^2}
+  p(x_1, x_2, \ldots, x_N),
+\]
+and so does conditioning
+\[
+  p(x_1, \ldots | x_N) p(x_N) = p(x_1, \ldots x_N).
+\]
+However, now there can be mixed cases of conditioning.
+\begin{prop}[Conditioning]
+  Given the RVs $x, y, z$:
+  \[
+    p_{x|yz}(\bar{x} | \bar{y}, \bar{z}) = 
+      \frac{p_{xy|z}(\bar{x},\bar{y} | \bar{z})}{p_{y|x}(\bar{y} | \bar{z})}.
+  \]
+  This generalizes to more variables.
+\end{prop}
+
+For RVs there is a notion if independence, that is, they do not affect each
+other.
+
+\begin{defn}[Independence]
+  The RVs $x$ and $y$ are said to be independent if $p(x|y) = p(x)$.
+\end{defn}
+
+From the definition it follows that $p(x,y) = p(x)p(y)$ and $p(y|x) = p(y)$.
+
+\subsection{Expectation and Moments}
+
+The expectation is to be understood as a statistical average, or as a weighted
+sum with the coefficients being the probability.
+
+\begin{defn}[Expectation]
+  For a RV $x \in \mathcal{X}$
+  \[
+    \E[x]{x}
+       = \sum_{\bar{x} \in \mathcal{X}} \bar{x} p_x(\bar{x})
+       \text{ or }
+       \int_\mathcal{X} \bar{x} p_x(\bar{x}) \, d\bar{x}.
+  \]
+\end{defn}
+
+In the definition above $p_x$ can be replaced with a conditional $p_{x|y}$, to
+obtain the conditional expectation
+\[
+  \E[x|y]{x | \bar{y}} 
+    = \int_\mathcal{X} \bar{x} p_{x|y}(\bar{x} | \bar{y}) \, d\bar{x}.
+\]
+
+\begin{thm}[Law of the Unconscious Statistician]
+  Let $y = g(x) \in \mathcal{Y} = g(\mathcal{X})$ where $x \in \mathcal{X}$ is
+  a DRV or CRV. Then
+  \[
+    \E[y]{y} = \sum_{\bar{x} \in \mathcal{X}} g(\bar{x}) p_x(\bar{x})
+      \text{ or }
+      \int_\mathcal{X} g(\bar{x}) p_x(\bar{x}) \, d\bar{x},
+  \]
+  or more compactly $\E[y]{y} = \E[x]{g(x)}$.
+\end{thm}
+
+\begin{defn}[Variance]
+  For a RV $x \in \mathcal{X}$
+  \[
+    \Var[x]{x} = \E[x]{(x - \E[x]{x})\mt{(x - \E[x]{x})}}.
+  \]
+  If $x$ is a vector the resulting matrix is sometimes called covariance.
+\end{defn}
+
+\subsection{Sampling Distributions}
+
+Most mathematical libraries offer a function to sample a RV that is uniformly
+distributed on $(0,1)$ (in MATLAB \texttt{rand()}). In other words we have a
+PDF
+\[
+  p_u(\bar{u}) = \begin{cases}
+    1 & \bar{u} \in (0,1) \\
+    0 & \text{otherwise}
+  \end{cases}.
+\]
+We can use $p_u$ to generate samples for any other desired PDF using the
+following algorithms.
+
+\begin{alg}[Sample a DRV] \label{alg:sample-drv}
+  Given a derided PDF $\hat{p}_x$ for a DRV $x \in \mathcal{X} = \mathbb{Z}$,
+  its cumulative distribution function (CDF) is a nondecreasing function
+  \[
+    \hat{F}_x (\bar{x}) = \sum_{i = -\infty}^{\bar{x}} \hat{p}_x (i),
+    = \Pr{x \leq \bar{x}}
+  \]
+  and has the property that $\hat{F}_x(-\infty) = 0$ and $\hat{F}_x(\infty) =
+  1$.
+
+  Let $\bar{u}$ be the samples of $u \sim \mathcal{U}(0,1)$. To find
+  a sample $\bar{x}$ of $x$ we solve for a $\bar{x}$ such that
+  $\hat{F}_x(\bar{x} -1) < \bar{u}$ and $\bar{u} \leq \hat{F}_x(\bar{x})$.
+\end{alg}
+
+\begin{alg}[Sample multiple finite DRV]
+  Given a desired joint PDF $\hat{p}_{xy}$ for the scalar DRVs $x \in
+  \mathcal{X}$ and $y \in \mathcal{Y}$, where $N_x = |\mathcal{X}|$ and
+  $N_y = |\mathcal{Y}|$ are both finite, let $\mathcal{Z} = \{1,2,\ldots,
+  N_xN_y\}$. Then define a new $\hat{p}_z$ such that $\hat{p}_z(1) =
+  \hat{p}_{xy}(1,1)$, $\hat{p}_z(2) = \hat{p}_{xy}(1,2)$, \dots,
+  $\hat{p}_z(N_xN_y) = \hat{p}_{xy}(N_x, N_y)$, and apply algorithm
+  \ref{alg:sample-drv} to $\hat{p}_z$.
+\end{alg}
+
+If the constraint of having finite sets of outcome is a problem, the following
+algorithm also works for infinite sets $\mathcal{X}$ and $\mathcal{Y}$.
+
+\begin{alg}[Sample multiple DRVs] \label{alg:sample-multiple-drvs}
+  Given a desired joint PDF $\hat{p}_{xy}$, decompose it into
+  $\hat{p}_{x|y}(\bar{x}|\bar{y}) \hat{p}_y(\bar{y})$. Apply algorithm
+  \ref{alg:sample-drv} to get a sample $\bar{y}$ for $y$ via
+  $\hat{p}_y(\bar{y})$, then with $\bar{y}$ fixed apply algorithm
+  \ref{alg:sample-drv} again to get $\bar{x}$ for $x$ via
+  $\hat{p}_{x|y}(\bar{x}|\bar{y})$.
+\end{alg}
+
+\begin{remark}
+  The independence of the uniform number generator between successive calls is
+  important. Further, both algorithms were described for 2 variables but they
+  both generalize any number of DRVs.
+\end{remark}
+
+\begin{alg}[Sample a CRV] \label{alg:sample-crv}
+  Given a desired piecewise continuous and bounded PDF $\hat{p}_x$ for a CRV
+  $x$, let
+  \[
+    \hat{F}_x(\bar{x})
+      = \int_{-\infty}^{\bar{x}} \hat{p}_x(\lambda) \, d\lambda
+      = \Pr{x \leq \bar{x}}
+  \]
+  be the CDF of $x$. To find a sample of $x$ let $\bar{x}$ be any solution to
+  $\bar{u} = \hat{F}_x(\bar{x})$, then $x$ has PDF $p_x = \hat{p}_x$.
+\end{alg}
+
+\begin{alg}[Sample multiple CRVs]
+  Analogously to algorithm \ref{alg:sample-multiple-drvs} decompose the
+  given desired joint PDF into $\hat{p}_{xy}(\bar{x},\bar{y}) =
+  \hat{p}_{x|y}(\bar{x}|\bar{y}) \hat{p}_y(\bar{y})$. Then, apply algorithm
+  \ref{alg:sample-crv} to get a $\bar{y}$ for $y$ via $\hat{p}_y(\bar{y})$,
+  and with $\bar{y}$ fixed apply it again to get a sample $\bar{x}$ of $x$
+  with $\hat{p}_{x|y}(\bar{x}|\bar{y})$.
+\end{alg}
+
+\subsection{Change of Variables}
+
+When we work with functions of RVs we usually also wish to know the
+PDFs of the results.
+
+\begin{prop}[Change of variables for DRVs]
+  Let $p_y$ be given for $y \in \mathcal{Y}$ and consider $x = g(y) \in
+  \mathcal{X} = g(\mathcal{Y})$. For each $\bar{x} \in \mathcal{X}$ let
+  \[
+    \mathcal{Y}_{\bar{x}} = \{ \bar{y}_i : \bar{y}_i \in \mathcal{Y},
+    g(\bar{y}_i) = \bar{x} \},
+  \]
+  then
+  \[
+    p_x(\bar{x}) = 
+      \sum_{\bar{y} \in \mathcal{Y}_{\bar{x}}} p_y(\bar{y}) =
+      \sum_{\bar{y} \in \mathcal{Y} : g(\bar{y}) = \bar{x}}
+        p_y(\bar{y}).
+  \]
+\end{prop}
+
+\begin{prop}[Change of variables for CRVs]
+  Consider a strictly monotonic differentiable continuous function $x = g(y)$,
+  then
+  \[
+    p_x(\bar{x}) = \frac{p_y(\bar{y})}{g'(\bar{y})}
+      = \frac{p_y \circ g^{-1}(\bar{x})}{g' \circ g^{-1} (\bar{x})}.
+  \]
+\end{prop}
+
+\subsection{Bayes' Theorem}
+
+\begin{thm}[Bayes' theorem] For the RVs $x$ and $z$
+\[
+  p(x|z) = p(z|x)\frac{p(x)}{p(z)}.
+\]
+\end{thm}
+
+\begin{remark}
+  The interpretation is as follows: $x$ is the unknown quantity of interest
+  (state); $p(x)$ is the prior belief of the state; $z$ is an observation
+  related to the state; $p(z|x)$ is, for a given state, what is the
+  probability of observing $z$? $p(x|z)$ is the posterior belief, that is the
+  observation what is the probability that the state is $x$?
+\end{remark}
+
+Bayes' theorem is a systematic way of combining prior beliefs with
+observations. Since observing $z$ is usually not enough to directly determine
+$x$. That is because usually $\dim z < \dim x$ and with noise $p(z|x)$ is not
+sharp.
+
+\begin{prop}[Generalization of Bayes' theorem]
+  Suppose there are $N$ (vector or scalar) observations $z_1, \ldots, z_N$.
+  Assuming conditional independence, i.e.
+  \[
+    p(z_1, \ldots, z_N|x) = p(z_1|x) \cdots p(z_N|x),
+  \]
+  then
+  \[
+    p(x|z_1, \ldots, z_N) 
+      = \frac{p(x) \prod_i p(z_i | x)}{p(z_1, \ldots, z_N)},
+  \]
+  where the normalization
+  \[
+    p(z_1, \ldots, z_N) = \sum_{x \in \mathcal{X}} p(x) \prod_i p(z_i | x)
+  \]
+  by the total probability theorem.
+\end{prop}
+A possible interpretation for the independence assumption is that a
+measurement of the state $x$ is corrupted by noise which is independent at
+each time step.
+
+\end{document}
