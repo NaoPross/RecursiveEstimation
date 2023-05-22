@@ -24,6 +24,7 @@
 %% Mathematics
 \usepackage{amsmath}
 \usepackage{amsthm}
+\usepackage{algpseudocode}
 
 %% Language configuration
 \usepackage{polyglossia}
@@ -69,7 +70,7 @@
 \newtheorem{alg}{Algorithm}[section]
 
 \theoremstyle{remark}
-\newtheorem{example}{Example}
+\newtheorem*{example}{Example}
 \newtheorem*{remark}{Remark}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -89,7 +90,7 @@
 % \section*{Contributors}
 % \thecontributors
 
-\section*{Lizenz}
+\section*{License}
 \doclicenseThis
 
 \tableofcontents
@@ -358,6 +359,26 @@ PDFs of the results.
   \]
 \end{prop}
 
+\begin{prop}[Multivariate change of variables for CRVs]
+  \label{pro:multivariate-change-var}
+  Let $g : \mathbb{R}^m \to \mathbb{R}^m, w \mapsto g(w)$, be a map with
+  nonsingular Jacobian for all $w$, i.e.
+  \[
+    \det \frac{\partial g}{\partial w} = \det \begin{bmatrix}
+      \partial_{w_1} g_1 & \cdots & \partial_{w_m} g_1 \\
+      \vdots & \ddots & \vdots \\
+      \partial_{w_1} g_m & \cdots & \partial_{w_m} g_m
+    \end{bmatrix}
+    \neq 0, \quad \forall w.
+  \]
+  Further, assume that $z = g(w)$ has a unique solution for $w$ in terms of
+  $z$, say $w = h(z)$. Then
+  \[
+    p_z(\bar{z}) = p_w(h(\bar{z})) \left|
+      \det \frac{\partial g}{\partial w}(h(\bar{z})) \right|^{-1}.
+  \]
+\end{prop}
+
 \subsection{Bayes' Theorem}
 
 \begin{thm}[Bayes' theorem] For the RVs $x$ and $z$
@@ -376,8 +397,8 @@ PDFs of the results.
 
 Bayes' theorem is a systematic way of combining prior beliefs with
 observations. Since observing $z$ is usually not enough to directly determine
-$x$. That is because usually $\dim z < \dim x$ and with noise $p(z|x)$ is not
-sharp.
+$x$. That is because usually $\dim z < \dim x$ and with noise $p(z|x)$ that is not
+``sharp''.
 
 \begin{prop}[Generalization of Bayes' theorem]
   Suppose there are $N$ (vector or scalar) observations $z_1, \ldots, z_N$.
@@ -399,5 +420,263 @@ sharp.
 A possible interpretation for the independence assumption is that a
 measurement of the state $x$ is corrupted by noise which is independent at
 each time step.
+
+\section{Bayesian Tracking}
+
+\subsection{Problem Statement}
+
+Let $x(k) \in \mathcal{X}$ be a vector valued state at time $k \in
+\mathbb{Z}^+$ we wish to estimate. Assume $x$ is a DRV and $\mathcal{X}$ is
+finite. Let $z(k)$ be a vector valued measurement which can be a DRV or CRV.
+
+The model for the dynamics of the system and measurements may be nonlinear and
+time-varying:
+\begin{align*}
+  x(k) &= q_{k-1}(x(k-1), v(k-1)), & k&=1,2,\ldots \\
+  z(k) &= h_k(x(k), w(k)),
+\end{align*}
+where $x(0), \{v(\cdot)\},$ and $\{w(\cdot)\}$ are mutually independent with
+known PDFs. Any known input to the system is not explicitly included as it can
+be embedded into $q_{k-1}$ and $h_k$.
+
+Let $z(1:k)$ denote the set $\{z(1), \ldots, z(k)\}$. The goal is to
+\emph{efficiently} compute $p(x(k) | z(1:k))$, that is, the full conditional
+probability density function of the state.
+
+\subsection{Recursive Estimator}
+
+Bayesian tracking is a two step recursive algorithm:
+\begin{itemize}
+  \item \textbf{Prior update}: the state estimate is predicted forward using
+    the process model.
+  \item \textbf{Measurement update}: the prior is combined with observations /
+    measurements.
+\end{itemize}
+
+\begin{prop}[Prior Update]
+  We can predict the PDF of $x(k)$ based on past measurements $z(1:k-1)$ using
+  \begin{gather*}
+    p(x(k)|z(1:k-1)) = \\
+      \sum_{x(k-1) \in \mathcal{X}}
+      \underbrace{p(x(k) | x(k-1))}_{\text{process model}} ~
+      \underbrace{p(x(k-1) | z(1:k-1))}_{\text{previous iteration}},
+  \end{gather*}
+  where $p(x(k) | x(k-1))$ can be computed from $p(v(k-1))$ and
+  $q_{k-1}(\cdot, \cdot)$ using changes of variables.
+\end{prop}
+
+\begin{remark}
+  The change of variables required in the prior update may not be
+  straightforward.
+\end{remark}
+
+\begin{prop}[Measurement Update]
+  We combine the new observation using Bayes' rule and get
+  \begin{align*}
+    p(x(k) &| z(1:k)) = p(x(k) | z(k), z(1:k-1)) = \\
+      &\frac{
+        \overbrace{p(z(k) | x(k), z(1:k-1))}^{\text{measurement model}}
+        \overbrace{p(x(k) | z(1:k-1))}^{\text{prior}}
+      }{\underbrace{p(z(k) | z(1:k-1))}_\text{normalization}}
+  \end{align*}
+  where the normalization can be computed using the total probability theorem
+  \begin{align*}
+    p(z(k) &| z(1:k-1)) =  \\
+      &\sum_{x(k) \in \mathcal{X}} p(z(k) | x(k)) p(x(k) | z(1: k-1)).
+  \end{align*}
+\end{prop}
+
+To implement this on a computer, there is the following algorithm.
+
+\begin{alg}[Recursive Estimator]
+  Enumerate the state space $\mathcal{X} = \{0,1, \ldots, N-1\}$. Define:
+  \begin{itemize}
+    \item $\vec{a}^i_{k|k} = p_{x(k) | z(1:k)}(i | \bar{z}(1:k))$ with
+      $i=0,1,\ldots,N-1$, an array with $N$ elements used to store the
+      posterior PDF at time $k$. 
+    \item $\vec{a}^i_{k|k-1} = p_{x(k) | z(1:k-1)}(i | \bar{z}(1:k-1))$,
+      $i=0,\ldots,N-1$ to store the prior PDF at time $k$.
+  \end{itemize}
+  Then, compute an expression for
+  \begin{itemize}
+    \item $p_{x(k)|x(k-1)}(i|j)$ using the process model $x(k) =
+      q_{k-1}(x(k-1), v(k-1))$ and $p_{v(k-1)}(\bar{v}(k-1))$.
+    \item $p_{z(k)|x(k)}(\bar{z}(k)|i)$ using the observation model $z(k) =
+      h_k(x(k),w(k))$ and $p_{w(k)}(\bar{w}(k))$.
+  \end{itemize}
+  \algrenewcomment[1]{\(\triangleright\) {\itshape #1}}
+  \begin{algorithmic}
+    \Procedure{Estimator}{$p_{x(0)}(0), \ldots, p_{x(0)}(N-1)$}
+      \State\Comment{Initialization}
+      \State \(\vec{a}^i_{0|0} \gets p_{x(0)}(i), \quad 
+          \forall i \in \{0,\ldots,N-1\}
+        \)
+      \Loop
+        \ForAll {$i \in \{0,\ldots,N-1\}$}
+          \State\Comment{Prior update}
+          \State \(
+              \displaystyle \vec{a}^i_{k|k-1} \gets 
+              \sum_{j=0}^{N-1} p_{x(k)|x(k-1)}(i | j) ~ \vec{a}^j_{k-1|k-1}
+            \)
+          \State\Comment{Measurement update}
+          \State \(
+              \displaystyle \vec{a}^i_{k|k} \gets 
+              \frac{p_{z(k)|x(k)}(\bar{z}(k)|i) ~ \vec{a}^j_{k|k-1}}
+              {\displaystyle \sum_{j=0}^{N-1} 
+                p_{z(k)|x(k)}(\bar{z}(k)|j) ~ \vec{a}^j_{k|k-1}}
+            \)
+        \EndFor
+      \EndLoop
+    \EndProcedure
+  \end{algorithmic}
+\end{alg}
+
+%% TODO: Add example problem?
+%% TODO: remarks on choice of parameters / possible errors
+
+\section{Extracting Estimates from Probability Distributions}
+
+The conditional PDF $p_{x|z}(\bar{x}|\bar{z})$ for the quantity $x$ and its
+observations $z$ captures the full information that one has about $x$ in the
+Bayesian sense. However, we may be interest in just on an estimate $\hat{x}$
+of $x$.
+
+\subsection{Maximum Likelihood (ML)}
+
+ML applies when $x \in \mathcal{X}$ is an unknown (constant) parameter without
+a (known) probabilistic description $p_x(\bar{x})$.
+
+\begin{defn}[Maximum Likelihood Estimator]
+  Let $z \in \mathcal{Z}$ be the measurement of the observation model
+  $p_{z|x}(\bar{z} | \bar{x})$. For a given observation $\bar{z}$ ML seeks the
+  value for the parameter $x$ that makes the observation $\bar{z}$ most
+  likely:
+  \[
+    \hat{x}^\text{ML} = \argmax_{\bar{x} \in \mathcal{X}}
+      p_{z|x} (\bar{z} | \bar{x}).
+  \]
+  In this context $p_{z|x} (\bar{z} | \bar{x})$ is called \emph{likelihood
+  function}.
+\end{defn}
+
+\begin{example}[Least Squares]
+  Suppose there is an observation model, whereby we have $m$ measurements of
+  $n$ states:
+  \[
+    \begin{bmatrix} z_1 \\ \vdots \\ z_m \end{bmatrix}
+    = \begin{bmatrix}
+        h_{11} & \cdots & h_{1n} \\
+        \vdots & \ddots & \vdots \\
+        h_{m1} & \cdots & h_{mn}
+    \end{bmatrix}
+    \begin{bmatrix} x_1 \\ \vdots \\ x_n \end{bmatrix}
+    + \begin{bmatrix} w_1 \\ \vdots \\ w_m \end{bmatrix}.
+  \]
+  Or, more compactly $z = Hx + w$, with $z,w \in \mathbb{R}^m$, $x \in
+  \mathbb{R}^n$, $H \in \mathbb{R}^{m\times n}$, $m > n$ and $w_i \sim
+  \mathcal{N}(0,1)$. Further, we assume that the $w_i$ are mutually
+  independent and that $H$ has full column rank ($Hx = 0$ implies $x=0$).
+
+  We apply the multivariate change of variables of proposition
+  \ref{pro:multivariate-change-var}, so in this case, $z = g_x(w)$ and the
+  unique solution is $w = h_x(z) = z - Hx$. Here, the Jacobian is
+  nonsingular since
+  \[
+    \det \frac{\partial g_x}{\partial w} = 
+    \det \partial_w \left(Hx + w\right) = 1.
+  \]
+  Hence
+  \[
+    p_{z|x}(\bar{z} | \bar{x})
+      = p_w(\bar{z} - H\bar{x})
+      = \prod_{i=1}^m p_w(\bar{z}_i - H_i\bar{x}),
+  \]
+  where in the first equality the conditioning of $x$ can be dropped because
+  $w$ and $x$ are assumed to be independent, then the second equality is
+  justified by the mutual independence of the $w_i$'s, and we use $H_i$ to
+  denote the $i$-th row of $H$ (measurement).
+  Now, because $p_w$ is Gaussian
+  \[
+      \prod_{i=1}^m p_w(\bar{z}_i - H_i\bar{x})
+      \propto \exp \left(
+        -\frac{1}{2} \sum_{i=1}^m (\bar{z}_i - H_i \bar{x})^2
+      \right).
+  \]
+  To apply ML we need to maximixe the sum in the exponent. Differentiating it
+  and setting it to zero yields
+  \[
+    \mt{H}(\bar{z} - H\bar{z}) = 0 \implies
+      \bar{x} = \minv{(\mt{H} H)} \mt{H} \bar{z},
+  \]
+  that is, the least squares solution.
+\end{example}
+
+%% TODO: examples from problem set 3
+
+\subsection{Maximum a Posteriori (MAP)}
+
+The maximum a posteriori estimate applies when $x$ is a RV with known PDF.
+
+\begin{defn}[Maximum a Posteriori Estimator]
+  Let $z$ be the measurement of tbe observation model $p_{z|x}(\bar{z} |
+  \bar{x})$. For a given obserservation $\bar{z}$ MAP looks for the most
+  likely choice of $\bar{x}$ given the previous belief about $x$:
+  \[
+    \hat{x}^\text{MAP} = \argmax_{\bar{x} \in \mathcal{X}}
+      p_{z|x}(\bar{z} | \bar{x}) p_x(\bar{x}).
+  \]
+\end{defn}
+
+\begin{remark}
+  If $p_x$ is constant (uniform), then $\hat{x}^\text{MAP} =
+  \hat{x}^\text{ML}$, i.e. the prior does not provide any additional
+  information.
+\end{remark}
+
+\begin{example}
+  Consider the scalar observation model $z = x + w$ with $w \sim
+  \mathcal{N}(0,1)$, $x \sim \mathcal{N}(\mu, \sigma^2)$, $w$ and $x$
+  independent. Then
+  \begin{gather*}
+    p_x(\bar{x}) \propto \exp\left(
+      -\frac{1}{2} \frac{(\bar{x} - \mu)^2}{\sigma^2}
+    \right),
+    \text{ and } \\
+    p_{z|x}(\bar{z}|\bar{x}) \propto \exp\left(
+      -\frac{1}{2} (\bar{z} - \bar{x})^2
+    \right).
+  \end{gather*}
+  To apply MAP compute $p_{x|z} (\bar{x} | \bar{z})$, differentiate w.r.t.
+  $\bar{x}$ and set to zero. The result is
+  \[
+    \bar{x} = \frac{1}{1 + \sigma^2} \mu + \frac{\sigma^2}{1 + \sigma^2}
+    \bar{z},
+  \]
+  a weighted sum. Notice that when $\sigma \to \infty$ ($x$ is uniformly
+  distributed), $\bar{x} = \bar{z}$ is the ML.
+\end{example}
+
+\subsection{Recursive Least Squares (RLS)}
+
+\subsubsection{Problem Statement}
+
+We consider the observation model
+\[
+  z(k) = H(k) x + w(k),
+  \quad
+  z(k), w(k) \in\mathbb{R}^m, x \in\mathbb{R}^n.
+\]
+The given prior knowledge are the mean $\hat{x}_0 = \E{x}$ and variance $P_x =
+\Var{x}$ of $x$. Further, we assume that the noise $w(k)$ is zero-mean
+$\E{w(k)} = 0$, with known variance $R(k) = \Var{w(k))}$ and mutually
+independent in time $k$ and also with $x$. Tipically it is also the case that
+we have more equations than observations, i.e. $n > m$.
+
+The goal is to compute an estimate $\hat{x}(k)$ of $x$ from the observations
+$\{\bar{z}(1), \bar{z}(2), \ldots, \bar{z}(k)\}$ in the least square sense,
+that is, minimizing a quadratic error.
+
+\subsubsection{Standard Weighted LS}
+
 
 \end{document}
