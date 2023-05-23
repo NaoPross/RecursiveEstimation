@@ -26,6 +26,9 @@
 \usepackage{amsthm}
 \usepackage{algpseudocode}
 
+%% Lists
+\usepackage{enumitem}
+
 %% Language configuration
 \usepackage{polyglossia}
 \setdefaultlanguage{english}
@@ -605,7 +608,7 @@ a (known) probabilistic description $p_x(\bar{x})$.
   To apply ML we need to maximixe the sum in the exponent. Differentiating it
   and setting it to zero yields
   \[
-    \mt{H}(\bar{z} - H\bar{z}) = 0 \implies
+    \mt{H}(\bar{z} - H\bar{x}) = 0 \implies
       \bar{x} = \minv{(\mt{H} H)} \mt{H} \bar{z},
   \]
   that is, the least squares solution.
@@ -660,7 +663,7 @@ The maximum a posteriori estimate applies when $x$ is a RV with known PDF.
 
 \subsubsection{Problem Statement}
 
-We consider the observation model
+We consider the observation model for a constant $x$
 \[
   z(k) = H(k) x + w(k),
   \quad
@@ -669,8 +672,9 @@ We consider the observation model
 The given prior knowledge are the mean $\hat{x}_0 = \E{x}$ and variance $P_x =
 \Var{x}$ of $x$. Further, we assume that the noise $w(k)$ is zero-mean
 $\E{w(k)} = 0$, with known variance $R(k) = \Var{w(k))}$ and mutually
-independent in time $k$ and also with $x$. Tipically it is also the case that
-we have more equations than observations, i.e. $n > m$.
+independent in time $k$ and also with $x$. Typically it is also the case that
+we have more equations than observations, i.e. $n > m$, and information is
+obtained ``over time''.
 
 The goal is to compute an estimate $\hat{x}(k)$ of $x$ from the observations
 $\{\bar{z}(1), \bar{z}(2), \ldots, \bar{z}(k)\}$ in the least square sense,
@@ -678,5 +682,49 @@ that is, minimizing a quadratic error.
 
 \subsubsection{Standard Weighted LS}
 
+%% TODO: Add with prior from problem set 3 p 9, and give more context from p3
+A naive strategy is to wait until one has collected enough samples to perform
+a weighted LS. Neglecting the prior, if we have data until time $k$:
+\[
+  \begin{bmatrix} z(1) \\ \vdots \\ z(k) \end{bmatrix} =
+  \begin{bmatrix} H(1) \\ \vdots \\ H(k) \end{bmatrix} x +
+  \begin{bmatrix} w(1) \\ \vdots \\ w(k) \end{bmatrix},
+\]
+or $\vec{z} = \mx{H} x + \vec{w}$, then with $\mx{R} =
+\operatorname{blockdiag}(R(1), \ldots, R(k))$
+\begin{align*}
+  \hat{x}^\text{WLS}(k) &= \argmin_{\hat{x}} \{
+    (\mt{\bar{\vec{z}} - \mx{H} \hat{x})} \minv{\mx{R}}
+      (\bar{\vec{z}} - \mx{H} \hat{\vec{x}})
+  \} \\
+  &= \minv{(\mt{\mx{H}} \minv{\mx{R}} \mx{H})}
+    \mt{\mx{H}} \minv{\mx{R}} \bar{\vec{z}}
+\end{align*}
+
+The obvious problem with this approach is that as time progresses ($k$
+increases) the LS problem grows in dimension, until it becomes computationally
+intractable.
+
+\subsubsection{Recursive LS}
+
+A more effective solution is a recursive algorithm. This is a precursor to the
+Kalman filter.
+
+\begin{alg}[Recursive LS]
+  Initialize an estimate of the initial state $\hat{x}_0$ with $P_0
+  = P_x = \Var{x}$. The recursion is as follows:
+  Observe $\bar{z}_k$, then update
+  \begin{align*}
+    K_k &= P_{k-1} \mt{H}_k \minv{(H_k P_{k-1}\mt{H}_k + R_k)}, \\
+    \hat{x}_k &= \hat{x}_{k-1} + K_k (\bar{z}_k - H_k \hat{x}_{k-1}), \\
+    P_k &= (I - K_k H_k) P_{k-1} \mt{(I - K_k H_k)} + K_k R_k \mt{K}_k.
+  \end{align*}
+\end{alg}
+
+An intuition for the structure of this estimator is given by the fact that if
+the measurement coincides with the estimate then $\bar{z}_k - H_k \hat{x}_{k-1}
+= 0$ and $\hat{x}_k = \hat{x}_{k-1}$.
+
+\section{Kalman Filter}
 
 \end{document}
