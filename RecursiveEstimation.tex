@@ -66,6 +66,7 @@
 
 \theoremstyle{plain}
 \newtheorem{thm}{Theorem}[section]
+\newtheorem{lemma}{Lemma}[section]
 \newtheorem{prop}{Proposition}[section]
 
 \theoremstyle{definition}
@@ -424,6 +425,97 @@ A possible interpretation for the independence assumption is that a
 measurement of the state $x$ is corrupted by noise which is independent at
 each time step.
 
+\subsection{Gaussian Random Variables}
+
+For Kalman filter we need to know the properties of Gaussian RVs.
+
+\begin{defn}[Gaussian RV (GRV)]
+  The PDF of a Gaussian (normally) distributed $D$-dimensional CRV $y = (y_1,
+  \ldots, y_D)$ is
+  \[
+    p(y) = \frac{1}{\sqrt{(2\pi)^D \det \Sigma}} \exp \left( 
+        -\frac{1}{2} \mt{(y - \mu)} \minv{\Sigma} (y - \mu)
+      \right),
+  \]
+  where $\mu \in \mathbb{R}^D$ is the mean vector and $\Sigma \in
+  \mathbb{R}^{D\times D}$ and $\Sigma \succ 0$ (is a 
+  positive definite matrix) and symmetric ($\mt{\Sigma} = \Sigma$).
+\end{defn}
+
+\begin{prop}
+  In the special case where $\Sigma$ is a diagonal matrix with entries
+  $\sigma^2_i$
+  \[
+    p(y) = \prod_{i=1}^D \frac{1}{\sqrt{2\pi \sigma^2_i}}
+      \exp\left(-\frac{(y_i - \mu_i)^2}{2\sigma^2_i}\right).
+  \]
+  Hence, the PDF is a product of scalar GRVs, and thus the variables are
+  mutually independent (the converse is also true).
+\end{prop}
+
+\begin{remark}
+  For a time-dependent GRV $y(k)$ we say that it is \emph{spatially}
+  independent for a fixed time $k$ if $y_1(k)$, \dots, $y_D(k)$ are
+  mutually independent, and \emph{temporally} independent if $y(1)$, \dots,
+  $y(k)$ are mutually independent.
+\end{remark}
+
+\begin{defn}[Jointly GRVs]
+  Two GRVs $x$ and $y$ are said to be jointly Gaussian if the vector RV $(x,
+  y)$ is also a GRV.
+\end{defn}
+
+\begin{remark}
+  If two variables are GRVs this does not imply that they are jointly GRVs.
+\end{remark}
+
+\begin{prop} \label{lem:independent-grvs-joint}
+  If two GRVs $x \sim \mathcal{N}(\mu_x, \Sigma_x)$ and $y \sim
+  \mathcal{N}(\mu_y, \Sigma_y)$ are independent, i.e. $p(x,y) = p(x)p(y)$
+  then they are jointly Gaussian.
+\end{prop}
+\begin{proof}
+  We assume hat $p(x, y) = p(x)p(y)$. By computing $p(x)p(y)$ we see that it
+  is still Gaussian
+  \begin{align*}
+    &p(x)p(y)
+    \propto \exp \Big(
+      -\frac{1}{2} \Big[
+        \mt{(x - \mu_x)} \minv{\Sigma}_x (x - \mu_x) \\
+        &\qquad\qquad\qquad\qquad
+          + \mt{(y - \mu_y)} \minv{\Sigma}_y (x - \mu_y)
+      \Big]
+    \Big) \\
+    &= \exp \Bigg(
+      -\frac{1}{2} \mt{\begin{bmatrix}
+        x - \mu_x \\
+        y - \mu_y 
+      \end{bmatrix}}
+      \begin{bmatrix}
+        \minv{\Sigma}_x & 0 \\
+        0 & \minv{\Sigma}_y
+      \end{bmatrix}
+      \begin{bmatrix}
+        x - \mu_x \\
+        x - \mu_y
+      \end{bmatrix}
+    \Bigg).
+    \qedhere
+  \end{align*}
+\end{proof}
+
+\begin{lemma}[Affine transformation of a GRV is a GRV]
+  \label{lem:affine-grv}
+  Let $y$ be a GRV, $M$ a matrix and $b$ a vector of appropriate size, then $x
+  = My + b$ is a GRV.
+\end{lemma}
+
+\begin{lemma}[Linear combination of jointly GRVs is a GRV]
+  Let $x$ and $y$ be jointly Gaussian GRVs, then $z = M_x x + M_y y$ where
+  $M_x$ and $M_y$ are constant matrices of appropriate dimensions, is a GRV.
+
+\end{lemma}
+
 \section{Bayesian Tracking}
 
 \subsection{Problem Statement}
@@ -495,10 +587,10 @@ To implement this on a computer, there is the following algorithm.
   Enumerate the state space $\mathcal{X} = \{0,1, \ldots, N-1\}$. Define:
   \begin{itemize}
     \item $\vec{a}^i_{k|k} = p_{x(k) | z(1:k)}(i | \bar{z}(1:k))$ with
-      $i=0,1,\ldots,N-1$, an array with $N$ elements used to store the
+      $i=0,1$, \dots, $N-1$, an array with $N$ elements used to store the
       posterior PDF at time $k$. 
     \item $\vec{a}^i_{k|k-1} = p_{x(k) | z(1:k-1)}(i | \bar{z}(1:k-1))$,
-      $i=0,\ldots,N-1$ to store the prior PDF at time $k$.
+      $i=0$, \dots, $N-1$ to store the prior PDF at time $k$.
   \end{itemize}
   Then, compute an expression for
   \begin{itemize}
@@ -537,7 +629,7 @@ To implement this on a computer, there is the following algorithm.
 %% TODO: Add example problem?
 %% TODO: remarks on choice of parameters / possible errors
 
-\section{Extracting Estimates from Probability Distributions}
+\section{Extracting Estimates}
 
 The conditional PDF $p_{x|z}(\bar{x}|\bar{z})$ for the quantity $x$ and its
 observations $z$ captures the full information that one has about $x$ in the
@@ -690,7 +782,7 @@ a weighted LS. Neglecting the prior, if we have data until time $k$:
   \begin{bmatrix} H(1) \\ \vdots \\ H(k) \end{bmatrix} x +
   \begin{bmatrix} w(1) \\ \vdots \\ w(k) \end{bmatrix},
 \]
-or $\vec{z} = \mx{H} x + \vec{w}$, then with $\mx{R} =
+or $\vec{z} = \mx{H} x + \vec{w}$, then $\mx{R} =
 \operatorname{blockdiag}(R(1), \ldots, R(k))$
 \begin{align*}
   \hat{x}^\text{WLS}(k) &= \argmin_{\hat{x}} \{
@@ -711,6 +803,7 @@ A more effective solution is a recursive algorithm. This is a precursor to the
 Kalman filter.
 
 \begin{alg}[Recursive LS]
+  \label{alg:recursive-ls}
   Initialize an estimate of the initial state $\hat{x}_0$ with $P_0
   = P_x = \Var{x}$. The recursion is as follows:
   Observe $\bar{z}_k$, then update
@@ -726,5 +819,151 @@ the measurement coincides with the estimate then $\bar{z}_k - H_k \hat{x}_{k-1}
 = 0$ and $\hat{x}_k = \hat{x}_{k-1}$.
 
 \section{Kalman Filter}
+
+The Kalman filter (KF) is a Bayesian estimator for linear time-varying (LTV)
+systems with Gaussian process and measurement noise. The KF is particularly
+exceptional because it has a closed form analytical solution.
+
+\subsection{Problem Statement}
+
+Consider a LTV system
+\begin{align*}
+  x(k) &= A(k-1) x(k-1) + u(k-1) + v(k-1), \\
+  z(k) &= H(k) x(k) + w(k),
+\end{align*}
+where $x(k)$ is the state, $u(k)$ is a known control input, $v(k) \sim
+\mathcal{N}(0, Q(k))$ is the process noise, $z(k)$ is the measurement and
+$w(k) \sim \mathcal{N}(0, R(k))$ is the sensor noise. Further the initial
+state $x(0) \sim \mathcal{N}(x_0, P_0)$ and $x(0), \{w(\cdot)\}$ and
+$\{w(\cdot)\}$ are mutually independent.
+
+\begin{remark}
+  If $v(k)$ has nonzero mean, say $v(k) \sim \mathcal{N}(\alpha, Q(k))$ define
+  $\bar{u} = u - \alpha$. Similarly if $w(k) \sim \mathcal{N}(\beta, R(k))$,
+  redefine $\bar{z} = z - \beta$.
+\end{remark}
+
+\subsection{Bayesian Formulation}
+
+For the Bayesian interpretation of the KF we reformulate the problem using
+auxiliary variables ``p'' for the prediction, and ``m'' for measurement:
+\begin{align*}
+  x_\mathrm{m}(0) &= x(0) \\
+  x_\mathrm{p}(k) &= A(k-1) x_\mathrm{m}(k-1) + u(k-1) + v(k-1) \\
+  z_\mathrm{m}(k) &= H(k) x_\mathrm{p}(k) + w(k)
+\end{align*}
+where $x_\mathrm{m}(k)$ is defined via its PDF
+\[
+  p_{x_\text{m}(k)}(\xi) = p_{x_\text{p}(k)|z_\text{m}(k)}(\xi | \bar{z}(k)),
+  \quad\forall \xi.
+\]
+
+\begin{lemma}
+  With the above formulation
+  \begin{align*}
+    p_{x_\mathrm{p}(k)}(\xi) &= p_{x(k)|z(1:k-1)}(\xi | \bar{z}(1:k-1)), \\
+    p_{x_\mathrm{m}(k)}(\xi) &= p_{x(k)|z(1:k)}(\xi | \bar{z}(1:k)),
+  \end{align*}
+  for all $\xi$ and $k = 1,2,\ldots$. That is, $x_\mathrm{p}(k)$ is the RV
+  $x(k)$ conditioned on $z(1:k-1)$ and $x_\mathrm{m}(k)$ is the RV $x(k)$
+  conditioned on $z(1:k)$.
+\end{lemma}
+% \begin{proof}[Proof sketch]
+% TODO: do the proof
+% \end{proof}
+
+Now, introducing the following notation for the mean and variance of the
+prediction and measurement
+\begin{align*}
+  \hat{x}_\mathrm{p}(k) &= \E{x_\mathrm{p}(k)}, &
+  P_\mathrm{p}(k) &= \Var{x_\mathrm{p}(k)}, \\
+  \hat{x}_\mathrm{m}(k) &= \E{x_\mathrm{m}(k)}, &
+  P_\mathrm{m}(k) &= \Var{x_\mathrm{m}(k)},
+\end{align*}
+we make use of the following fact:
+\begin{lemma}
+  For all $k$, $x_\mathrm{p}(k)$ and $x_\mathrm{m}(k)$ are GRVs.
+\end{lemma}
+% \begin{proof}[Proof sketch]
+%   The proof is by induction. The claim is true by definition for
+%   $x_\mathrm{m}(0)$. For $k \geq 1$ assume $x_\mathrm{m}(k-1)$ is a GRV to
+%   show that this implies that $x_\mathrm{p}(k)$ and $x_\mathrm{m}(k)$ are
+%   GRVs. This is accomplished by noting that $x_\mathrm{p}(k)$ and
+%   $x_\mathrm{m}(k)$ are affine combinations of GRVs and making use of lemma
+%   \ref{lem:affine-grv}. Further, $x_\mathrm{m}(k-1)$ and $v(k-1)$ are
+%   independent, hence they are also jointly Gaussian by lemma
+%   \ref{lem:independent-grvs-joint}.
+% TODO: finish here
+% \end{proof}
+
+Hence, we can compute expressions for $\hat{x}_\mathrm{p}(k)$,
+$P_\mathrm{p}(k)$, $\hat{x}_\mathrm{m}(k)$ and $P_\mathrm{m}(k)$, i.e. the
+Kalman filter equations.
+
+\begin{thm}[Kalman Filter Equations]
+  The prior update or prediction step is
+  \begin{align*}
+    \hat{x}_\mathrm{p}(k) &= A(k-1) \hat{x}_\mathrm{m}(k-1) + u(k-1), \\
+    P_\mathrm{p}(k) &= A(k-1) P_\mathrm{m}(k-1) \mt{A}(k-1) + Q(k-1),
+  \end{align*}
+  then, the a posteriori update or measurement step is
+  \begin{align*}
+    P_\mathrm{m}(k) &= \minv{(
+        \minv{P}_\mathrm{p}(k) + \mt{H}(k) \minv{R}(k) H(k)
+      )}, \\
+    \hat{x}_\mathrm{m}(k) &= \hat{x}_\mathrm{p}(k)
+      + P_\mathrm{m}(k) \mt{H}(k) \minv{R}(k)
+        (\bar{z}(k) - H(k) \hat{x}_\mathrm{p}(k)).
+  \end{align*}
+\end{thm}
+
+Therefore, the Kalman filter is the analytical solution to the Bayesian state
+estimation problem for a linear system with Gaussian distributions.
+
+\subsection{Alternate Formulation}
+
+A more common formulation for the Kalman filter is as follows.
+
+\begin{thm}[KF with Kalman Gain]
+  Let
+  \[
+    K(k) = P_\mathrm{p}(k) \mt{H}(k) \minv{(
+      H(k) P_\mathrm{p}(k) \mt{H}(k) + R(k)
+    )}
+  \]
+  be the Kalman filter gain. Then, the a posteriori update can be computed
+  with
+  \begin{align*}
+    \hat{x}_\mathrm{m}(k) &= \hat{x}_\mathrm{p}(k) + K(k)(
+      \bar{z}(k) - H(k) \hat{x}_\mathrm{p}(k)
+    ), \\
+    P_\mathrm{m}(k) &= (I - K(k) H(k)) P_\mathrm{p}(k).
+  \end{align*}
+\end{thm}
+% \begin{proof}[Proof sketch]
+% TODO: do it
+% \end{proof}
+
+This is the same as the recursive least square algorithm
+\ref{alg:recursive-ls}, therefore, the KF can also be applied to non-Gaussian
+RVs. Then, the KF can be interpreted as a linear unbiased estimator that
+minimizes the mean square error (MMSE). However, it the KF will no longer be
+optimal in the Bayesian sense.
+
+\begin{lemma}[Joseph form of the covariance update]
+  In the a posteriori update of the KF with Kalman Gain $P_\mathrm{m}(k)$ can
+  be computed with
+  \begin{align*}
+    P_\mathrm{m}(k) = (I - K(k) H(k)) 
+      &P_\mathrm{p}(k) \mt{(I - K(k) H(k))} \\
+      &+ K(k) R(k) \mt{K(k)}.
+  \end{align*}
+  This form is more computationally expensive, but less sensitive to numerical
+  errors.
+\end{lemma}
+
+\subsection{Implementation of the KF}
+
+\subsection{KF as State Observer}
 
 \end{document}
