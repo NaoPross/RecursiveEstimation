@@ -11,16 +11,6 @@
 %% The OST Student's package
 \usepackage{oststud}
 
-% TODO: remove once oststud gets updated
-\makeatletter
-\let\ost@expectation\relax \let\ost@variance\relax
-\let\E\relax \let\Var\relax
-\DeclareMathOperator*{\ost@expectation}{E}
-\newcommand*{\E}[2][]{\ost@expectation_{#1}\left\{#2\right\}}
-\DeclareMathOperator*{\ost@variance}{Var}
-\newcommand*{\Var}[2][]{\ost@variance_{#1}\left\{#2\right\}}
-\makeatother
-
 %% Mathematics
 \usepackage{amsmath}
 \usepackage{amsthm}
