@@ -3,7 +3,7 @@
 % !TeX root = RecursiveEstimation.tex
 % vim:set ts=2 sw=2 et spell tw=78:
 
-\documentclass[margin=small]{hsrzf}
+\documentclass[margin=tiny]{hsrzf}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Packages
@@ -67,6 +67,8 @@
 \newtheorem*{example}{Example}
 \newtheorem*{remark}{Remark}
 
+\DeclareMathOperator{\rank}{rank}
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Document
 
@@ -77,8 +79,13 @@
 
 \maketitle
 
-% \begin{abstract}
-% \end{abstract}
+\begin{abstract}
+  These are my notes of the course Recursive Estimation
+  (\texttt{151-0566-00L}, spring semester 2023) by Dr. D'Andrea at ETH Zürich.
+  Almost all of the material in this comes from lecture notes, slides and
+  exercises of the course, with exception of minor additions that were
+  introduced for clarity.
+\end{abstract}
 
 % show the names of the people who contributed to this document.
 % \section*{Contributors}
@@ -97,8 +104,6 @@
 \twocolumn
 
 \section{Probability Basics Review}
-
-Note that the following definitions will not be rigorous.
 
 \subsection{Random Variables}
 
@@ -934,12 +939,6 @@ A more common formulation for the Kalman filter is as follows.
 % TODO: do it
 % \end{proof}
 
-This is the same as the recursive least square algorithm
-\ref{alg:recursive-ls}, therefore, the KF can also be applied to non-Gaussian
-RVs. Then, the KF can be interpreted as a linear unbiased estimator that
-minimizes the mean square error (MMSE). However, it the KF will no longer be
-optimal in the Bayesian sense.
-
 \begin{lemma}[Joseph form of the covariance update]
   In the a posteriori update of the KF with Kalman Gain $P_\mathrm{m}(k)$ can
   be computed with
@@ -952,8 +951,379 @@ optimal in the Bayesian sense.
   errors.
 \end{lemma}
 
-\subsection{Implementation of the KF}
 
-\subsection{KF as State Observer}
+This is the same as the recursive least square algorithm
+\ref{alg:recursive-ls}, therefore, the KF can also be applied to non-Gaussian
+RVs. Then, the KF can be interpreted as a linear unbiased estimator that
+minimizes the mean square error (MMSE). However, it the KF will no longer be
+optimal in the Bayesian sense.
+
+\begin{remark}
+  If $A(k)$, $H(k)$, $Q(k)$, $R(k)$ and $P_0$ are known for all $k$,
+  $P_\mathrm{p}(k)$, $P_\mathrm{m}(k)$ and $K(k)$ can all be precomputed
+  offline.
+\end{remark}
+
+\begin{remark}
+  The KF assumes positive definiteness for $P_0 \succ 0$, $Q(k) \succ 0$,
+  $R(k) \succ 0$, however the KF also makes sense when they are positive
+  semidefinite, as long the matrix inversions are well defined. That is, when
+  some states are know exactly.
+\end{remark}
+
+\subsection{Detectability and Stabilizability}
+
+\begin{defn}[Detectability]
+  Consider the deterministic system
+  \[
+    x(k+1) = Ax(k), \quad
+    z(k) = Hx(k),
+  \]
+  where $k = 0, 1, \ldots $ and $x(0) = x_0 \in \mathbb{R}^n$. The system is
+  said to be detectable if
+  \[
+    \lim_{k\to\infty} z(k) = 0 \implies \lim_{k\to\infty} x(k) = 0,
+  \]
+  for any $x_0$.
+\end{defn}
+
+The above implies that the system is detectable iff $Hw \neq 0$ for any
+eigenvector $w$ corresponding to an eigenvalue $|\lambda| \geq 1$ of the matrix
+$A$. In other words, we need to be able to see unstable modes. This can be
+expressed with the conditions:
+\[
+  \rank \begin{bmatrix}
+    A - \lambda I \\
+    H
+  \end{bmatrix} = n, 
+  \quad \forall \lambda \in \mathbb{C},
+  \quad |\lambda| \geq 1,
+\]
+i.e. is full rank (PBH Test); Or, the eigenvalues of $A - LH$ or $(I - LH)A$
+can be placed within the unit circle by a suitable choice of
+$L\in\mathbb{R}^{n\times m}$
+
+\begin{defn}[Stabilizability]
+  Consider the deterministic system
+  \[
+    x(k+1) = Ax(k) + Bu(k), \quad
+    z(k) = Hx(k),
+  \]
+  where $k = 0, 1, \ldots $ and $x(0) = x_0$, $A \in \mathbb{R}^{n\times n}$,
+  $B \in\mathbb{R}^{n\times m}$. The system is said to be stabilizable if
+  \[
+    \exists u(0:k-1) \text{ such that } \lim_{k\to\infty} x(k) = 0
+  \]
+  for any $x_0$.
+\end{defn}
+Equivalently, if $\begin{bmatrix} A - \lambda I & B \end{bmatrix}$ is full
+rank for all $\lambda \in \mathbb{C}$ with $|\lambda| \geq 1$ (PBH Test); Or
+if the eigenvalues of $A - BK$ or $(I - BK)A$ can be placed within the unit
+circle by choosing $K\in \mathbb{R}^{m\times n}$. Stabilizability is the dual
+of detectability, i.e. $(A, B)$ is stabilizable iff $(\mt{A}, \mt{B})$ is
+detectable.
+
+% TODO: remark that stabilizability and detectability are weaker statements of
+% controllability and observaility
+
+\subsection{The Steady-State KF}
+
+If the variance $P_\mathrm{p}(k)$ converges, so does $P_\mathrm{m}(k)$ and the
+KF gain: $\lim_{k\to\infty} K(k) = K_\infty$. The time invariance of
+$K_\infty$ makes the implementation easier.
+
+\begin{defn}[Steady-State KF Gain, DARE]
+  Assuming $P_\mathrm{p}(k)$ converges to $P_\infty$, then
+  \begin{align*}
+    P_\mathrm{p}(k+1) &= A P_\mathrm{p}(k) \mt{A} + Q \\
+      &- A P_\mathrm{p}(k)
+      \mt{H} \minv{( H P_\mathrm{p}(k) \mt{H} + R)} H P_\mathrm{p}(k) \mt{A}
+  \end{align*}
+  (obtained by combining the KF equations) becomes the \emph{discrete
+  algebraic Riccati equation} (DARE)
+  \[
+    P_\infty = A P_\infty \mt{A} + Q - A P_\infty \mt{H}
+      \minv{(H P_\infty \mt{H} + R)} H P_\infty \mt{A},
+  \]
+  and $K_\infty = P_\infty \mt{H}\minv{(H P_\infty \mt{H} + R)}$.
+\end{defn}
+
+% TODO: remarks on convergence of P_\infty to the trivial (useless) solution
+
+\begin{thm}
+  Assume $R \succ 0$, $Q \succeq 0$, and let $G$ be any matrix such that $Q =
+  G\mt{G}$. Then the following statements are equivalent
+  \begin{itemize}
+    \item $(A, H)$ is detectable and $(A, G)$ is stabilizable.
+    \item The DARE has a unique solution $P_\infty \succeq 0$, $(I - K_\infty
+      H)A$ is stable and
+      \[
+        \lim_{k\to\infty} P_\mathrm{p}(k) = P_\infty
+        \text{ for any } P_\mathrm{p}(1) \succeq 0
+      \]
+      and hence any $P_\mathrm{m}(0) = P_0 \succeq 0$.
+  \end{itemize}
+\end{thm}
+
+\begin{remark}
+  $(A,H)$ detectable means that all unstable modes can be observed, and
+  $(A,G)$ stabilizable means that noise excites unstable modes (if $Q \succ 0$, then
+  this always holds).
+\end{remark}
+
+\section{Extended Kalman Filter (EKF)}
+
+\subsection{Problem Statement}
+
+Consider the nonlinear discrete-time system
+\[
+  x(k) = q_{k-1}(x(k-1), v(k-1)), 
+  \quad z(k) = h_k(x(k), w(k)),
+\]
+where
+\begin{align*}
+  \E{x(0)} &= x_0, & \Var{x(0)} &= P_0, \\
+  \E{v(k-1)} &= 0, & \Var{v(k-1)} &= Q(k-1), \\
+  \E{w(k)} &= 0, & \Var{w(k)} &= R(k).
+\end{align*}
+Moreover, $x(0)$, $\{v(\cdot)\}$, $\{w(\cdot)\}$ are mutually independent,
+$q_{k-1}$ is continuously differentiable wrt $x(k-1)$ and $v(k-1)$, and
+$h_{k}$ is continuously differentiable wrt $x(k)$ and $w(k)$. That is, a
+system that is mildly nonlinear. Any known input to the system is implicitly
+absorbed in $q_{k-1}$.
+
+\subsection{The EKF Equations}
+
+The EKF works by linearizing the nonlinear system at the current state
+estimate and then apply the KF equations.
+
+% TODO: initialization of the EKF
+
+\begin{thm}[EKF process update equations]
+  Linearizing $q_{k-1}(x(k-1), v(k-1))$ about $\hat{x}_\mathrm{m}(k-1)$ and
+  $\E{v(k-1)} = 0$ yields
+  \[
+    x(k) \approx A(k-1) x(k-1) + L(k-1) v(k-1) + \xi(k-1),
+  \]
+  where
+  \begin{align*}
+    A(k-1) &= \partial_x q_{k-1}(\hat{x}_\mathrm{m}(k-1), 0), \\
+    L(k-1) &= \partial_v q_{k-1}(\hat{x}_\mathrm{m}(k-1), 0), \\
+    \xi(k-1) &= q_{k-1}(\hat{x}_\mathrm{m}(k-1),0) -
+    A(k-1)\hat{x}_\mathrm{m}(k-1).
+  \end{align*}
+  The noise $L(k-1)v(k-1)$ is zero-mean with variance
+  $L(k-1)Q(k-1)\mt{L}(k-1)$. The update equations are
+  \begin{align*}
+    \hat{x}_\mathrm{p}(k) &= q_{k-1}(\hat{x}_\mathrm{m}(k-1), 0) \\
+    P_\mathrm{p}(k) &= A(k-1) P_\mathrm{m}(k-1) \mt{A}(k-1) \\
+      &\qquad + L(k-1) Q(k-1) \mt{L}(k-1).
+  \end{align*}
+\end{thm}
+
+Intuition: Predict the mean state estimate forward using the nonlinear process
+model and update the variance according to the linearized equations.
+
+\begin{thm}[EKF measurement update equations]
+  Linearizing $h_k(x(k), w(k))$ about $\hat{x}_\mathrm{p}(k)$ and $\E{w(k)} =
+  0$ yields
+  \[
+    z(k) \approx H(k) x(k) + M(k) w(k) + \zeta(k),
+  \]
+  where
+  \begin{align*}
+    H(k) &= \partial_x h_{k}(\hat{x}_\mathrm{p}(k), 0), \\
+    M(k) &= \partial_w h_{k}(\hat{x}_\mathrm{p}(k), 0), \\
+    \zeta(k) &= h_k(\hat{x}_\mathrm{p}(k), 0) - H(k) \hat{x}_\mathrm{p}(k).
+  \end{align*}
+  The term $\zeta(k)$ known and can be removed by defining the auxiliary
+  measurement $z(k) - \zeta(k)$. The noise $M(k)w(k)$ is zero-mean with
+  variance $M(k)R(k)\mt{M}(k)$, and the update equations are
+  \begin{align*}
+    K(k) &= P_\mathrm{p}(k) \mt{H}(k) (
+        H(k) P_\mathrm{p}(k) \mt{H}(k) \\
+        &\qquad\qquad\qquad + M(k) R(k) \mt{M}(k) \minv{)}, \\
+    \hat{x}_\mathrm{m}(k) &= \hat{x}_\mathrm{p}(k) + K(k) (
+        \bar{z}(k) - h_k(\hat{x}_\mathrm{p}(k), 0)), \\
+    P_\mathrm{m}(k) &= (I - K(k)H(k)) P_\mathrm{p}(k).
+  \end{align*}
+\end{thm}
+
+Intuition: correct for the mismatch between the actual measurement
+$\bar{z}(k)$ and its nonlinear prediction $h_k(\hat{x}_\mathrm{p}(k), 0)$,
+and correct the variance according to the linearized equations.
+
+\begin{remark}
+  In this case the Kalman gain cannot be computed offline even if the noise
+  distributions are known for all $k$, hence the EKF is more computationally
+  expensive.
+\end{remark}
+
+The EKF variables $\hat{x}_\mathrm{p}(k)$, $\hat{x}_\mathrm{m}(k)$,
+$P_\mathrm{p}(k)$ and $P_\mathrm{m}$ are only approximations! The EKF would be
+exact if $q_{k-1}$ and $\E{\cdot}$ commuted:
+\[
+  \E{q_{k-1}(x, v)} = q_{k-1}(\E{x}, \E{v})
+\]
+(the same is also for $h_k$), which is not the case for general nonlinear
+$q_{k-1}$, but true for linear $q_{k-1}$.
+
+Therefore, the EKF does not have general convergence guarantees, but it works
+well for mildly nonlinear systems with unimodal noise distributions.
+
+\subsection{Hybrid EKF}
+
+In practice the process dynamics are usually continuous in time, and
+measurement taken a discrete time steps. That is
+\[
+  \dot{x}(t) = q(x(t), v(t), t),
+  \quad z[k] = h_k(x[k], w[k]),
+\]
+with $\E{w[k]} = 0$, $\Var{w[k]} = R$ (assumed constant for simplicity). We
+use the notation $x[k] = x(kT)$ with $T$ being a constant sampling time.
+
+\begin{remark}
+  One could discretize the dynamics and work with the EKF above. However, if
+  the process is ``fast'' (needs very small $T$), working with a lot of
+  samples may end up being more expensive than the hybrid EKF which works with
+  the continuous-time dynamics.
+\end{remark}
+
+\begin{defn}[White Noise]
+  A discrete time signal $v_\mathrm{d}[k]$ is said to be white noise if
+  $\E{v_\mathrm{d}[k]} = 0$ and $\E{v_\mathrm{d}[k] \mt{v_\mathrm{d}}[k+n]} =
+  Q\delta_\mathrm{d}[n]$, where $n$ is an integer and $\delta_\mathrm{d}[n]$
+  is the Kroneker delta, i.e $\delta_\mathrm{d}[0] = 1$ and
+  $\delta_\mathrm{d}[n] = 0$ when $n \neq 0$.
+
+  Similarly a continuous time signal $v(t)$ is white noise if $\E{v(t)} = 0$
+  and $\E{v(t) \mt{v(t)}} = Q_c \delta(\tau)$ where $\delta(\tau)$ is the
+  Dirac delta, which may be defined as
+  \[
+    \delta(\tau) = \lim_{\epsilon \to 0} \begin{cases}
+      1/(2\epsilon) & -\epsilon < \tau < \epsilon \\
+      0 & \text{otherwise}
+    \end{cases}.
+  \]
+\end{defn}
+
+\begin{remark}
+  True continuous white noise cannot exist because it would have infinite
+  power (has constant power spectral density), but it is nonetheless a useful
+  approximation.
+\end{remark}
+
+\begin{thm}
+  The Dirac pulse has the property that $\int_a^b \xi(\tau) \delta(\tau)
+  ~d\tau = \xi(0)$, for all $a < 0$ and $b > 0$ and any real valued function
+  $\xi(t)$ that is continuous at 0.
+\end{thm}
+
+\begin{thm}[Hybrid EKF process update]
+  Solve in the interval $(k-1)T \leq t \leq kT$ the ODE
+  \[
+    \dot{\hat{x}}(t) = q(\hat{x}(t), 0, t), 
+    \quad \hat{x}((k-1)T) = \hat{x}_\mathrm{m}[k-1]
+  \]
+  and set $\hat{x}_\mathrm{p}[k] = \hat{x}(kT)$. Then solve in the same
+  interval the matrix ODE
+  \[
+    \dot{P}(t) = A(t)P(t) + P(t) \mt{A}(t) + L(t) Q_c \mt{L}(t),
+  \]
+  where $A(t) = \partial_x q(\hat{x}(t), 0, t)$ and $L(t) = \partial_v
+  q(\hat{x}, 0, t)$ with $P((k-1)T) = P_\mathrm{m}[k-1]$. Then set
+  $P_\mathrm{p}[k] = P(kT)$.
+\end{thm}
+\begin{proof}[Proof]
+  Consider only $0 \leq t \leq T$ and generalize later for other $k$. To obtain
+  the mean update we take the expectation of the dynamics $\E{\dot{x}(t)} =
+  \E{q(x(t), v(t), t)}$. Then the time-derivative and $\E{\cdot}$ commute, and
+  we assume that $\E{q(\cdot)} \approx q(\E{\cdot})$ to get the ODE for
+  $\hat{x}(t)$.
+
+  For the variance update linearize the system with $A(t) = \partial_x
+  q(\hat{x}(t), 0, t)$, $L(t) = \partial_v q(\hat{x}(t), 0, t)$ and let
+  $\tilde{x} = x(t) - \hat{x}(t)$, assume $\tilde{x}$ and $v(t)$ are small
+  (may be a bad assumption, especially if $v(t)$ is unbounded). Then
+  $\dot{\tilde{x}} \approx A(t) \tilde{x}(t) + L(t)\tilde{x}$, and
+  \begin{gather*}
+    \tilde{x}(t + \tau) \approx \tilde{x}(t) + \int_t^{t + \tau}
+      A(\xi)\tilde{x}(\xi) + L(\xi) v(\xi) ~ d\xi \\
+      \approx \tilde{x}(t) + \tau A(t) \tilde{x}(t) + L(t) \int_t^{t + \tau}
+        v(\xi) ~ d\xi + \mathcal{O}(\tau^2),
+  \end{gather*}
+  by linearizing around $\tau = 0$. The integral of $v(\xi)$ cannot be
+  approximated since $v(\xi) = Q_c\delta(\xi)$ is not continuous. Now, define
+  $P(t) = \Var{x(t)} \approx \E{\tilde{x}(t) \mt{\tilde{x}}(t)}$ similar as in
+  the mean, then
+  \begin{align*}
+    &P(t + \tau) \approx P(t) + \tau A(t) P(t) + \tau P(t) \mt{A}(t) \\
+      &\qquad + L(t) \iint_{[t, t + \tau]^2} \E{v(\xi)\mt{v}(\eta)} d\xi d\eta ~\mt{L}(t)
+      + \mathcal{O}(\tau^2) \\
+    &= P(t) + \tau A(t) P(t) + \tau P(t) \mt{A}(t)
+      + \tau L(t) Q_c \mt{L}(t) + \mathcal{O}(\tau^2),
+  \end{align*}
+  where in the second step we used the fact that the integrand equals $Q_c
+  \delta(\xi - \eta)$. Reordering the equation to get $(P(t + \tau) - P(t)) /
+  \tau$ on the RHS and letting $\tau \to 0$ yields the variance update ODE.
+\end{proof}
+
+The measurement equations are the same as the discrete-time EKF.
+
+\begin{thm}[Hybrid EKF measurement update]
+  Let
+  \[
+    H[k] = \partial_x h_k(\hat{x}_\mathrm{p}[k], 0),
+    \quad
+    M[k] = \partial_w h_k(\hat{x}_\mathrm{p}[k], 0).
+  \]
+  Then the update equations are
+  \begin{align*}
+    K[k] &= P_\mathrm{p} \mt{H}[k]\minv{(
+      H[k] P_\mathrm{p}[k] \mt{H}[k] + M[k] R \mt{M}[k])}, \\
+    \hat{x}_\mathrm{m}[k] &= \hat{x}_\mathrm{p}[k]
+      + K[k](\bar{z} - h_k(\hat{x}_\mathrm{p}[k], 0)), \\
+    P_\mathrm{m}[k] &= (I - K[k] H[k]) P_\mathrm{p}[k].
+  \end{align*}
+\end{thm}
+
+\begin{remark}
+  Solving the matrix ODE is usually done with numerical ODE solvers such as
+  Runge-Kutta (\textsc{matlab} e.g. \texttt{ode45}), and the accuracy largely
+  depends on the order of the solver. Numerical accuracy is often at the cost
+  of increased computation.
+\end{remark}
+
+\section{Particle Filter (PF)}
+
+The basic idea of the particle filter is to approximate the Bayesian state
+estimator for nonlinear systems and general (non Gaussian) noise
+distributions, by representing the state PDF by a large number of samples
+called \emph{particles}. The overview of the particle filter is as follows:
+\begin{itemize}
+  \item the particles are propagate through the process model,
+  \item the particles are then weighted according to the measurement
+    likelihood,
+  \item a resampling generates a new set of particles.
+\end{itemize}
+
+\subsection{Problem Statement}
+
+Consider the nonlinear discrete-time system
+\[
+  x(k) = q_{k-1}(x(k-1), v(k-1)),
+  \quad
+  z(k) = h_k(x(k), w(k)),
+\]
+where $x(0)$, $\{v(\cdot)\}$ and $\{w(\cdot)\}$ are mutually independent and
+can be CRVs or DRVs with known PDF (no assumption on the shape of the PDF).
+Any known input is implicitly absorbed in $q_{k-1}(\cdot)$.
+
+\subsection{Monte Carlo (MC) Sampling}
+
+MC sampling is a basic technique o fusing a large number of samples called
+particles to approximate the PDF of a RV.
+
+\subsection{The Particle Filter}
 
 \end{document}
