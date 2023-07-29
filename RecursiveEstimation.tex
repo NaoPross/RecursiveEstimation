@@ -23,6 +23,7 @@
 
 %% Lists
 \usepackage{enumitem}
+\usepackage{booktabs}
 
 %% Language configuration
 \usepackage{polyglossia}
@@ -283,8 +284,8 @@ obtain the conditional expectation
 \label{sec:probability-review:sampling-distributions}
 
 Most mathematical libraries offer a function to sample a RV that is uniformly
-distributed on $(0,1)$ (in MATLAB \texttt{rand()}). In other words we have a
-PDF
+distributed on $(0,1)$ (in \textsc{matlab} \texttt{rand()}). In other words we
+have a PDF
 \[
   p_u(\bar{u}) = \begin{cases}
     1 & \bar{u} \in (0,1) \\
@@ -670,10 +671,10 @@ ML applies when $x \in \mathcal{X}$ is an unknown (constant) parameter without
 a (known) probabilistic description $p_x(\bar{x})$.
 
 \begin{defn}[Maximum Likelihood Estimator]
-  Let $z \in \mathcal{Z}$ be the measurement of the observation model
-  $p_{z|x}(\bar{z} | \bar{x})$. For a given observation $\bar{z}$ ML seeks the
-  value for the parameter $x$ that makes the observation $\bar{z}$ most
-  likely:
+  Let $z \in \mathcal{Z}$ be the measurement of the observation
+  model \allowbreak$p_{z|x}(\bar{z} | \bar{x})$. For a given observation
+  $\bar{z}$ ML seeks the value for the parameter $x$ that makes the
+  observation $\bar{z}$ most likely:
   \[
     \hat{x}^\text{ML} = \argmax_{\bar{x} \in \mathcal{X}}
       p_{z|x} (\bar{z} | \bar{x}).
@@ -1133,8 +1134,8 @@ estimate and then apply the KF equations.
 % TODO: initialization of the EKF
 
 \begin{thm}[EKF process update equations]
-  Linearizing $q_{k-1}(x(k-1), v(k-1))$ about $\hat{x}_\mathrm{m}(k-1)$ and
-  $\E{v(k-1)} = 0$ yields
+  Linearizing $q_{k-1}(x(k-1), v(k-1))$ about $\hat{x}_\mathrm{m}(k-1)$
+  and \allowbreak$\E{v(k-1)} = 0$ yields
   \[
     x(k) \approx A(k-1) x(k-1) + L(k-1) v(k-1) + \xi(k-1),
   \]
@@ -1224,10 +1225,10 @@ use the notation $x[k] = x(kT)$ with $T$ being a constant sampling time.
 
 \begin{defn}[White Noise]
   A discrete time signal $v_\mathrm{d}[k]$ is said to be white noise if
-  $\E{v_\mathrm{d}[k]} = 0$ and $\E{v_\mathrm{d}[k] \mt{v_\mathrm{d}}[k+n]} =
-  Q\delta_\mathrm{d}[n]$, where $n$ is an integer and $\delta_\mathrm{d}[n]$
-  is the Kroneker delta, i.e $\delta_\mathrm{d}[0] = 1$ and
-  $\delta_\mathrm{d}[n] = 0$ when $n \neq 0$.
+  $\E{v_\mathrm{d}[k]} = 0$ and \allowbreak$\E{v_\mathrm{d}[k]
+  \mt{v_\mathrm{d}}[k+n]} = Q\delta_\mathrm{d}[n]$, where $n$ is an integer
+  and $\delta_\mathrm{d}[n]$ is the Kroneker delta, i.e $\delta_\mathrm{d}[0]
+  = 1$ and $\delta_\mathrm{d}[n] = 0$ when $n \neq 0$.
 
   Similarly a continuous time signal $v(t)$ is white noise if $\E{v(t)} = 0$
   and $\E{v(t) \mt{v(t)}} = Q_c \delta(\tau)$ where $\delta(\tau)$ is the
