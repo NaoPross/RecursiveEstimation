@@ -23,7 +23,6 @@
 
 %% Lists
 \usepackage{enumitem}
-\usepackage{booktabs}
 
 %% Language configuration
 \usepackage{polyglossia}
@@ -1067,6 +1066,7 @@ KF gain: $\lim_{k\to\infty} K(k) = K_\infty$. The time invariance of
 $K_\infty$ makes the implementation easier.
 
 \begin{defn}[Steady-State KF Gain, DARE]
+  \label{def:steady-state-kf-gain-dare}
   Assuming $P_\mathrm{p}(k)$ converges to $P_\infty$, then
   \begin{align*}
     P_\mathrm{p}(k+1) &= A P_\mathrm{p}(k) \mt{A} + Q \\
@@ -1358,7 +1358,7 @@ Any known input is implicitly absorbed in $q_{k-1}(\cdot)$.
 
 \subsection{Monte Carlo (MC) Sampling}
 
-MC sampling is a basic technique o fusing a large number of samples called
+MC sampling is a basic technique of using a large number of samples called
 particles to approximate the PDF of a RV.
 
 \paragraph{MC approximant of a DRV}
@@ -1552,5 +1552,132 @@ where $K \ll 1$ is a tuning parameter, $d$ is the dimension of the state
 space, $E_i = \max_{n_1, n_2} | x_{\mathrm{m},i}^{n_1} -
 x_{\mathrm{m},i}^{n_1} |$ is the maximum inter-sample variability and
 $N^{-1/d}$ is related to the spacing between nodes of a uniform grid.
+
+\section{Observer Based Control}
+
+For many modern control strategies knowledge of the system state $x(k)$ is
+required. If perfect state measurements are not available it is replaced with
+a state estimate $\hat{x}(k)$. Henceforth we will discuss why and when it
+makes sense to separate the problem in \emph{estimation} and \emph{feedback
+control} (separation principle). Consider the LTI system
+\begin{align*}
+  x(k) &= Ax(k-1) + Bu(k-1) + v(k-1), \\
+  z(k) &= Hx(k) + w(k),
+\end{align*}
+where $v(k-1)$ and $w(k)$ are zero-mean CRVs to model noise. We want
+$\hat{x}(k) \to x(k)$ as $k \to \infty$ in absence of noise, and $\hat{x}(k)
+\to \E{x(k)}$ as $k \to \infty$ with bounded variance with noise.
+
+\begin{defn}[Leuenberg Observer]
+  \begin{align*}
+    \hat{x}(k) &= A\hat{x}(k-1) + Bu(k-1) + K(\bar{z}(k) - \hat{z}(k)), \\
+    \hat{z}(k) &= H(A\hat{x}(k-1) + Bu(k-1)),
+  \end{align*}
+  where $K$ is a static correction matrix that is to be designed.
+\end{defn}
+
+\begin{remark}
+  In absence of noise ($v(k-1) = 0, w(k) = 0$) $\bar{z}(k) = z(k)$ and the
+  error
+  \[
+    e(k) = x(k) - \hat{x}(k) = (I - KH) A e(k-1),
+  \]
+  hence $e(k) \to 0$ as $k\to 0$ iff $(I - KH)A$ is stable (all eigenvalues
+  $|\lambda_i| < 1$). Also, from linear system theory we know there exists
+  such stabilizing $K$ iff $(A, HA)$ is detectable, which is detectable iff
+  $(A,H)$ is detectable.
+\end{remark}
+\begin{remark}
+  An alternate Formulation of the Leuenberg Observer is
+    \begin{align*}
+    \hat{x}(k+1) &= A\hat{x}(k) + Bu(k) + K(\bar{z}(k) - \hat{z}(k)), \\
+    \hat{z}(k) &= H\hat{x}(k).
+  \end{align*}
+  The error dynamics are then $e(k+1) = (A-KH) e(k)$, and there is a stable
+  $K$ iff $(A-KH)$ is stable, which is true iff $(A,H)$ is detectable.
+\end{remark}
+
+\subsection{Static State-Feedback Control}
+
+In the deterministic case (no noise, $v(k-1) = 0, w(k) = 0$) we introduce a
+linear static feedback law $u(k) = Fx(k) = FHz(k)$ by choosing a matrix $F$.
+The closed loop dynamics $x(k) = (A + BF) x(k-1)$ are stable iff $A + BK$ is
+stable. From linear system theory $F$ exists iff $(A,B)$ is stabilizable.
+
+The feedback $F$ can be chosen by pole placement or using a linear quadratic
+regulator (LQR), which yields the $F$ that minimizes
+\[
+  J_\text{LQR} = \sum_{k=0}^\infty \mt{x}(k) \bar{Q} x(k)
+    + \mt{u}(k) \bar{R} u(k),
+\]
+where $\bar{Q} = \mt{\bar{Q}} \succeq 0$ and $\bar{R} = \mt{\bar{R}} \succ 0$.
+
+The LQR is dual to the steady-state KF design problem, because the solution
+for the optimal $F$ is
+\[
+  F = -\minv{(\mt{B} P B + \bar{R})} \mt{B} PA,
+\]
+where $P = \mt{P} \succeq 0$ is the unique positive semi-definite solution to
+the DARE
+\[
+  P = \mt{A} P A + \bar{Q}
+    - \mt{A} P B \minv{(\mt{B} P B + \bar{R})} \mt{B} P A,
+\]
+which is the same as the one in definition
+\ref{def:steady-state-kf-gain-dare} if one substitutes $A \to \mt{A}$, $H \to
+\mt{B}$, $Q \to \bar{Q}$ and $R \to \bar{R}$.
+
+\subsection{Separation Principle and Theorem}
+
+Consider again the deterministic dynamics with a state feedback $F$ and a
+Leuenberg observer. Separately, both the state-feedback dynamics as well as
+the observer are stable, is the combination of the two closed loop stable?
+As before we compute the closed loop error
+\[
+  e(k) = x(k) - \hat{x}(k) = (I - KH) A e(k-1)
+\]
+and the state equation
+\begin{align*}
+  x(k) &= Ax(k-1) + BF\hat{x}(k-1) \\
+    &= Ax(k-1) + BF(\hat{x}(k-1) + x(k-1) - x(k-1)) \\
+    &= (A + BF) x(k-1) + BF e(k-1),
+\end{align*}
+hence
+\[
+  \begin{bmatrix} x(k) \\ e(k) \end{bmatrix} =
+    \begin{bmatrix}
+      A + BF & -BF \\
+      0 & (I - KH)A
+    \end{bmatrix}
+    = \begin{bmatrix} x(k-1) \\ e(k-1) \end{bmatrix}.
+\]
+The eigenvalues of the matrix above are given by the eigenvalues of $(A + BF)$
+and $(I - KH)$, which we assumed are stable, hence the closed loop is also
+stable. This principle can be generalized under mild assumptions to the
+time-varying linear case, but does not hold in general for nonlinear systems.
+
+For LTI system there is an even stronger result if $v(k-1) \sim \mathcal{N}(0,
+Q)$ and $w(k) \sim \mathcal{N}(0, R)$ and the objective is to find the
+control policy that minimizes
+\[
+  J_\text{LQG} = \lim_{N \to\infty} \E{
+    \frac{1}{N} \sum_{k=0}^{N-1} \left(
+      \mt{x}(k) \bar{Q} x(k) + \mt{u}(k) \bar{R} u(k)
+    \right),
+  }
+\]
+where $u(k)$ can depend on current and past measurements $z(1:k)$ (causal).
+The \emph{optimal} strategy to solve this problem is called \emph{Linear
+Quadratic Gaussian} (LQG) control and consists in the following:
+\begin{enumerate}
+  \item Design a steady-state KF (independent of $\bar{Q}$ and $\bar{R}$) that
+    provides the estimate $\hat{x}(k)$ of $x(k)$.
+  \item Design an optimal state-feedback strategy $u(k) = Fx(k)$ (independent
+    of $Q$ and $R$ for the deterministic LQR problem ($x(k) = Ax(k-1) +
+    Bu(k-1)$) that minimizes $J_\text{LQR}$ (above).
+  \item Combine the two.
+\end{enumerate}
+Because of optimality this called separation \emph{theorem} for LTI system and
+quadratic cost.
 
 \end{document}
