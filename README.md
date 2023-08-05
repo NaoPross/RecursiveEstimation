@@ -6,7 +6,7 @@ These are my notes of the course Recursive Estimation (151-0566-00L, spring seme
 ```
 and then running
 ```
-$ pdfjam RecursiveEstimation.pdf 2- --nup 2x2 --outfile RecursiveEstimation2P.pdf
+$ pdfjam RecursiveEstimation.pdf --nup 2x2 --outfile RecursiveEstimation2P.pdf
 ```
 
 ## License

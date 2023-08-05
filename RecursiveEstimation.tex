@@ -3,12 +3,12 @@
 % !TeX root = RecursiveEstimation.tex
 % vim:set ts=2 sw=2 et spell tw=78:
 
-\documentclass[]{hsrzf}
-
 % To print for exam
-\usepackage{ifthen}
+\RequirePackage{ifthen}
 \newboolean{examprint}
 \setboolean{examprint}{false}
+
+\documentclass[]{hsrzf}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Packages
@@ -35,6 +35,14 @@
   modifier={by-nc-sa},
   version={4.0},
 ]{doclicense}
+
+% Change font
+\ifexamprint
+  \usepackage[condensed,math]{iwona}
+  \usepackage[T1]{fontenc}
+  % \usepackage[sfdefault,scaled=.85]{FiraSans}
+  % \usepackage{newtxsf}
+\fi
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Metadata
@@ -103,27 +111,29 @@
 
 \begin{document}
 
-% use roman numberals for introductiory pages
-\pagenumbering{roman}
+\ifexamprint\else
+  % use roman numberals for introductiory pages
+  \pagenumbering{roman}
 
-\maketitle
+  \maketitle
 
-\begin{abstract}
-  These are my notes of the course Recursive Estimation
-  (\texttt{151-0566-00L}, spring semester 2023) by Dr. D'Andrea at ETH Zürich.
-  Almost all of the material in this comes from lecture notes, slides and
-  exercises of the course, with exception of minor additions that were
-  introduced for clarity.
-\end{abstract}
+  \begin{abstract}
+    These are my notes of the course Recursive Estimation
+    (\texttt{151-0566-00L}, spring semester 2023) by Dr. D'Andrea at ETH Zürich.
+    Almost all of the material in this comes from lecture notes, slides and
+    exercises of the course, with exception of minor additions that were
+    introduced for clarity.
+  \end{abstract}
 
-% show the names of the people who contributed to this document.
-% \section*{Contributors}
-% \thecontributors
+  % show the names of the people who contributed to this document.
+  % \section*{Contributors}
+  % \thecontributors
 
-\section*{License}
-\doclicenseThis
+  \section*{License}
+  \doclicenseThis
 
-\tableofcontents
+  \tableofcontents
+\fi
 
 % actual content
 \clearpage
@@ -153,6 +163,7 @@
   \end{itemize}
 \end{defn}
 
+\ifexamprint\else
 The PDF is then used to define the notion of probability, i.e. the probability
 that a discrete RV $x$ takes the value $\bar{x} \in \mathcal{X}$ is
 $p_x(\bar{x})$, and is written as $\Pr{x = \bar{x}}$.
@@ -161,6 +172,7 @@ For a continuous RV $x$ the probability of any specific value is always 0,
 instead we can only can only refer to the RV being in some interval $[a,b]
 \subseteq \mathcal{X}$ and we write $\Pr{x \in [a,b]} = \int_a^b p_x(\bar{x})
 \,d\bar{x}$.
+\fi
 
 \begin{defn}[Joint PDF]
   Let $x \in \mathcal{X}$ and $y \in \mathcal{Y}$ be RVs. The joint PDF
@@ -567,6 +579,7 @@ probability density function of the state.
 \subsection{Recursive Estimator}
 \label{sec:bayesian-tracking:recursive-estimator}
 
+\ifexamprint\else
 Bayesian tracking is a two step recursive algorithm:
 \begin{itemize}
   \item \textbf{Prior update}: the state estimate is predicted forward using
@@ -574,6 +587,7 @@ Bayesian tracking is a two step recursive algorithm:
   \item \textbf{Measurement update}: the prior is combined with observations /
     measurements.
 \end{itemize}
+\fi
 
 \begin{prop}[Prior Update]
   We can predict the PDF of $x(k)$ based on past measurements $z(1:k-1)$ using
@@ -821,9 +835,11 @@ or $\vec{z} = \mx{H} x + \vec{w}$, then $\mx{R} =
     \mt{\mx{H}} \minv{\mx{R}} \bar{\vec{z}}
 \end{align*}
 
+\ifexamprint\else
 The obvious problem with this approach is that as time progresses ($k$
 increases) the LS problem grows in dimension, until it becomes computationally
 intractable.
+\fi
 
 \subsubsection{Recursive LS}
 
@@ -848,9 +864,11 @@ the measurement coincides with the estimate then $\bar{z}_k - H_k \hat{x}_{k-1}
 
 \section{Kalman Filter}
 
+\ifexamprint\else
 The Kalman filter (KF) is a Bayesian estimator for linear time-varying (LTV)
 systems with Gaussian process and measurement noise. The KF is particularly
 exceptional because it has a closed form analytical solution.
+\fi
 
 \subsection{Problem Statement}
 
@@ -1159,7 +1177,7 @@ Intuition: Predict the mean state estimate forward using the nonlinear process
 model and update the variance according to the linearized equations.
 
 \begin{thm}[EKF measurement update equations]
-  Linearizing $h_k(x(k), w(k))$ about $\hat{x}_\mathrm{p}(k)$ and $\E{w(k)} =
+  Linearizing \allowbreak $h_k(x(k), w(k))$ about $\hat{x}_\mathrm{p}(k)$ and $\E{w(k)} =
   0$ yields
   \[
     z(k) \approx H(k) x(k) + M(k) w(k) + \zeta(k),
@@ -1216,12 +1234,14 @@ measurement taken a discrete time steps. That is
 with $\E{w[k]} = 0$, $\Var{w[k]} = R$ (assumed constant for simplicity). We
 use the notation $x[k] = x(kT)$ with $T$ being a constant sampling time.
 
+\ifexamprint\else
 \begin{remark}
   One could discretize the dynamics and work with the EKF above. However, if
   the process is ``fast'' (needs very small $T$), working with a lot of
   samples may end up being more expensive than the hybrid EKF which works with
   the continuous-time dynamics.
 \end{remark}
+\fi
 
 \begin{defn}[White Noise]
   A discrete time signal $v_\mathrm{d}[k]$ is said to be white noise if
@@ -1305,7 +1325,9 @@ use the notation $x[k] = x(kT)$ with $T$ being a constant sampling time.
   \tau$ on the RHS and letting $\tau \to 0$ yields the variance update ODE.
 \end{proof}
 
+\ifexamprint\else
 The measurement equations are the same as the discrete-time EKF.
+\fi
 
 \begin{thm}[Hybrid EKF measurement update]
   Let
@@ -1324,15 +1346,18 @@ The measurement equations are the same as the discrete-time EKF.
   \end{align*}
 \end{thm}
 
+\ifexamprint\else
 \begin{remark}
   Solving the matrix ODE is usually done with numerical ODE solvers such as
   Runge-Kutta (\textsc{matlab} e.g. \texttt{ode45}), and the accuracy largely
   depends on the order of the solver. Numerical accuracy is often at the cost
   of increased computation.
 \end{remark}
+\fi
 
 \section{Particle Filter (PF)}
 
+\ifexamprint\else
 The basic idea of the particle filter is to approximate the Bayesian state
 estimator for nonlinear systems and general (non Gaussian) noise
 distributions, by representing the state PDF by a large number of samples
@@ -1343,6 +1368,7 @@ called \emph{particles}. The overview of the particle filter is as follows:
     likelihood,
   \item a resampling generates a new set of particles.
 \end{itemize}
+\fi
 
 \subsection{Problem Statement}
 
@@ -1358,8 +1384,10 @@ Any known input is implicitly absorbed in $q_{k-1}(\cdot)$.
 
 \subsection{Monte Carlo (MC) Sampling}
 
+\ifexamprint\else
 MC sampling is a basic technique of using a large number of samples called
 particles to approximate the PDF of a RV.
+\fi
 
 \paragraph{MC approximant of a DRV}
 
@@ -1549,7 +1577,7 @@ To choose the variance of said distribution a simple way is to let
   \sigma_i = K E_i N^{-1/d},
 \]
 where $K \ll 1$ is a tuning parameter, $d$ is the dimension of the state
-space, $E_i = \max_{n_1, n_2} | x_{\mathrm{m},i}^{n_1} -
+space, $E_i = \max_{n_1, n_2} | x_{\mathrm{m},i}^{n_2} -
 x_{\mathrm{m},i}^{n_1} |$ is the maximum inter-sample variability and
 $N^{-1/d}$ is related to the spacing between nodes of a uniform grid.
 
